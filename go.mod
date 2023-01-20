@@ -1,3 +1,3 @@
-module golang-microservic
+module go-microservices
 
 go 1.19
