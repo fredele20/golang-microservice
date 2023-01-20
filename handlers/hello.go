@@ -12,7 +12,7 @@ type Hello struct {
 }
 
 func NewHello(l *log.Logger) *Hello {
-	return &Hello{}
+	return &Hello{l}
 }
 
 func (h *Hello) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -23,5 +23,5 @@ func (h *Hello) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "Hello %s", d)
+	fmt.Fprintf(w, "Hello %s\n", d)
 }
