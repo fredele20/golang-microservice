@@ -1,0 +1,80 @@
+basePath: /
+consumes:
+    - application/json
+definitions:
+    Product:
+        description: Product defines the structure fro an API product
+        properties:
+            created_on:
+                type: string
+                x-go-name: CreatedOn
+            deleted_on:
+                type: string
+                x-go-name: DeletedOn
+            description:
+                type: string
+                x-go-name: Description
+            id:
+                format: int64
+                type: integer
+                x-go-name: ID
+            name:
+                type: string
+                x-go-name: Name
+            price:
+                format: float
+                type: number
+                x-go-name: Price
+            sku:
+                type: string
+                x-go-name: SKU
+            updated_on:
+                type: string
+                x-go-name: UpdatedOn
+        type: object
+        x-go-package: go-microservices/product-api/data
+info:
+    description: Documentation for Product API
+    title: of Product api
+    version: 1.0.0
+paths:
+    /products:
+        get:
+            description: Returns a list of products
+            operationId: listProducts
+            responses:
+                "200":
+                    $ref: '#/responses/productsResponse'
+            tags:
+                - products
+    /products/{id}:
+        post:
+            description: Returns a deleted product
+            operationId: deleteProduct
+            parameters:
+                - description: The id of the product to delete from the database
+                  format: int64
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+                  x-go-name: ID
+            responses:
+                "200":
+                    $ref: '#/responses/noContent'
+            tags:
+                - products
+produces:
+    - application/json
+responses:
+    noContent:
+        description: ""
+    productsResponse:
+        description: A list of products returns in the response
+        schema:
+            items:
+                $ref: '#/definitions/Product'
+            type: array
+schemes:
+    - http
+swagger: "2.0"

@@ -1,3 +1,17 @@
+// Package classification of Product api
+//
+//Documentation for Product API
+//
+// Schemes: http
+// BasePath: /
+// Version: 1.0.0
+//
+// Consumes:
+// - application/json
+//
+// Produces:
+// - application/json
+// swagger:meta
 package handlers
 
 import (
@@ -11,6 +25,27 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// A list of products returns in the response
+// swagger:response productsResponse
+type productsResponse struct {
+	// All products in the system
+	// in: body
+	Body []data.Product
+}
+
+// swagger:response noContent
+type productNoContent struct {
+
+}
+
+// swagger:parameters deleteProduct
+type productIDParameterWrapper struct {
+	// The id of the product to delete from the database
+	// in: path
+	// required: true
+	ID int `json:"id"`
+}
+
 type Products struct {
 	l *log.Logger
 }
@@ -19,6 +54,15 @@ func NewProducts(l *log.Logger) *Products {
 	return &Products{l}
 }
 
+type KeyProduct struct {}
+
+
+// swagger:route GET /products products listProducts
+// Returns a list of products
+// responses:
+// 	200: productsResponse
+
+// GetProducts returns the products from the data store
 func (p *Products) GetProducts(w http.ResponseWriter, r *http.Request) {
 	p.l.Println("Handle GET Products")
 
@@ -63,7 +107,30 @@ func (p Products) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type KeyProduct struct {}
+// swagger:route POST /products/{id} products deleteProduct
+// Returns a deleted product
+// responses:
+// 	200: noContent
+
+// DeleteProduct deletes a product from the data store
+func (p *Products) DeleteProduct(w http.ResponseWriter, r *http.Request) {
+	// this will always convert because of the router
+	vars := mux.Vars(r)
+	id, _ := strconv.Atoi(vars["id"])
+
+	p.l.Println("Handle DELETE Product", id)
+
+	err := data.DeleteProduct(id)
+	if err == data.ErrProductNotFound {
+		http.Error(w, "Product not found", http.StatusNotFound)
+		return
+	}
+
+	if err != nil {
+		http.Error(w, "Product not found", http.StatusInternalServerError)
+		return
+	}
+}
 
 func (p *Products) MiddlewareProductValidation(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
