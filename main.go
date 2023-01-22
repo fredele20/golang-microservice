@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"go-microservices/handlers"
+	"go-microservices/product-api/data"
 	"log"
 	"net/http"
 	"os"
@@ -16,15 +17,16 @@ import (
 func main() {
 
 	l := log.New(os.Stdout, "product-api", log.LstdFlags)
+	v := data.NewValidation()
 
 	// create the handlers
-	productHandler := handlers.NewProducts(l)
+	productHandler := handlers.NewProducts(l, v)
 
 	// create a new serve mux and register the handlers
 	sm := mux.NewRouter()
 
 	getRouter := sm.Methods(http.MethodGet).Subrouter()
-	getRouter.HandleFunc("/", productHandler.GetProducts)
+	getRouter.HandleFunc("/products", productHandler.GetProducts)
 
 	putRouter := sm.Methods(http.MethodPut).Subrouter()
 	putRouter.HandleFunc("/{id:[0-9]+}", productHandler.UpdateProduct)

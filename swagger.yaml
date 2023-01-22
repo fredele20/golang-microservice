@@ -2,6 +2,14 @@ basePath: /
 consumes:
     - application/json
 definitions:
+    GenericError:
+        description: GenericError is a generic error message returned by a server
+        properties:
+            message:
+                type: string
+                x-go-name: Message
+        type: object
+        x-go-package: go-microservices/handlers
     Product:
         description: Product defines the structure fro an API product
         properties:
@@ -12,27 +20,52 @@ definitions:
                 type: string
                 x-go-name: DeletedOn
             description:
+                description: the description for this poduct
+                maxLength: 10000
                 type: string
                 x-go-name: Description
             id:
+                description: the id for the this user
                 format: int64
+                minimum: 1
                 type: integer
                 x-go-name: ID
             name:
+                description: the name for this poduct
+                maxLength: 255
                 type: string
                 x-go-name: Name
             price:
+                description: the price for the product
                 format: float
+                minimum: 0.01
                 type: number
                 x-go-name: Price
             sku:
+                description: the SKU for the product
+                pattern: '[a-z]+-[a-z]+-[a-z]+'
                 type: string
                 x-go-name: SKU
             updated_on:
                 type: string
                 x-go-name: UpdatedOn
+        required:
+            - id
+            - name
+            - price
+            - sku
         type: object
         x-go-package: go-microservices/product-api/data
+    ValidationError:
+        description: ValidationError is a collection of validation error messages
+        properties:
+            messages:
+                items:
+                    type: string
+                type: array
+                x-go-name: Messages
+        type: object
+        x-go-package: go-microservices/handlers
 info:
     description: Documentation for Product API
     title: of Product api
@@ -47,8 +80,32 @@ paths:
                     $ref: '#/responses/productsResponse'
             tags:
                 - products
-    /products/{id}:
         post:
+            description: Create a new product
+            operationId: createProduct
+            responses:
+                "200":
+                    $ref: '#/responses/productsResponse'
+                "422":
+                    $ref: '#/responses/errorValidation'
+                "501":
+                    $ref: '#/responses/errorResponse'
+            tags:
+                - products
+        put:
+            description: Update a products details
+            operationId: updateProduct
+            responses:
+                "201":
+                    $ref: '#/responses/noContentResponse'
+                "404":
+                    $ref: '#/responses/errorResponse'
+                "422":
+                    $ref: '#/responses/errorValidation'
+            tags:
+                - products
+    /products/{id}:
+        delete:
             description: Returns a deleted product
             operationId: deleteProduct
             parameters:
@@ -62,13 +119,45 @@ paths:
             responses:
                 "200":
                     $ref: '#/responses/noContent'
+                "404":
+                    $ref: '#/responses/errorResponse'
+                "501":
+                    $ref: '#/responses/errorResponse'
+            tags:
+                - products
+        get:
+            description: Return a list of products from the database
+            operationId: listSingleProduct
+            parameters:
+                - description: The id of the product to delete from the database
+                  format: int64
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+                  x-go-name: ID
+            responses:
+                "200":
+                    $ref: '#/responses/productsResponse'
+                "404":
+                    $ref: '#/responses/errorResponse'
             tags:
                 - products
 produces:
     - application/json
 responses:
+    errorResponse:
+        description: Generic error message returned as a string
+        schema:
+            $ref: '#/definitions/GenericError'
+    errorValidation:
+        description: Validation errors defined as an array of strings
+        schema:
+            $ref: '#/definitions/ValidationError'
     noContent:
         description: ""
+    noContentResponse:
+        description: No content is returned by this API endpoint
     productsResponse:
         description: A list of products returns in the response
         schema:

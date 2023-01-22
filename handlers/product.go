@@ -38,7 +38,37 @@ type productNoContent struct {
 
 }
 
-// swagger:parameters deleteProduct
+type productParamsWrapper struct {
+	// Product data structure to Update or Create
+	// Note: the id field is ignore by update and create operations
+	// in: body
+	// required: true
+	Body data.Product
+}
+
+// No content is returned by this API endpoint
+// swagger:response noContentResponse
+type noContentResponseWrapper struct {
+}
+
+// Generic error message returned as a string
+// swagger:response errorResponse
+type errorResponseWrapper struct {
+	// Description of the error
+	// in: body
+	Body GenericError
+}
+
+// Validation errors defined as an array of strings
+// swagger:response errorValidation
+type errorValidationWrapper struct {
+	// Collection of the errors
+	// in: body
+	Body ValidationError
+}
+
+
+// swagger:parameters listSingleProduct deleteProduct
 type productIDParameterWrapper struct {
 	// The id of the product to delete from the database
 	// in: path
@@ -46,15 +76,50 @@ type productIDParameterWrapper struct {
 	ID int `json:"id"`
 }
 
+// KeyProduct is a key used for the Product object in the context
+type KeyProduct struct{}
+
+// Products handler for getting and updating products
 type Products struct {
 	l *log.Logger
+	v *data.Validation
 }
 
-func NewProducts(l *log.Logger) *Products {
-	return &Products{l}
+// NewProducts returns a new products handler with the given logger
+func NewProducts(l *log.Logger, v *data.Validation) *Products {
+	return &Products{l, v}
 }
 
-type KeyProduct struct {}
+// ErrInvalidProductPath is an error message when the product path is not valid
+var ErrInvalidProductPath = fmt.Errorf("Invalid Path, path should be /products/[id]")
+
+// GenericError is a generic error message returned by a server
+type GenericError struct {
+	Message string `json:"message"`
+}
+
+// ValidationError is a collection of validation error messages
+type ValidationError struct {
+	Messages []string `json:"messages"`
+}
+
+// getProductID returns the product ID from the URL
+// Panics if cannot convert the id into an integer
+// this should never happen as the router ensures that
+// this is a valid number
+func getProductID(r *http.Request) int {
+	// parse the product id from the url
+	vars := mux.Vars(r)
+
+	// convert the id into an integer and return
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		// should never happen
+		panic(err)
+	}
+
+	return id
+}
 
 
 // swagger:route GET /products products listProducts
@@ -66,6 +131,8 @@ type KeyProduct struct {}
 func (p *Products) GetProducts(w http.ResponseWriter, r *http.Request) {
 	p.l.Println("Handle GET Products")
 
+	w.Header().Add("Content-Type", "application/json")
+
 	listProduct := data.GetProducts()
 	err := listProduct.ToJSON(w)
 	if err != nil {
@@ -73,6 +140,55 @@ func (p *Products) GetProducts(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+
+// swagger:route GET /products/{id} products listSingleProduct
+// Return a list of products from the database
+// responses:
+//	200: productsResponse
+//	404: errorResponse
+
+// ListSingle handles GET requests
+func (p *Products) ListSingle(rw http.ResponseWriter, r *http.Request) {
+	id := getProductID(r)
+
+	p.l.Println("[DEBUG] get record id", id)
+
+	prod, err := data.GetProductByID(id)
+
+	switch err {
+	case nil:
+
+	case data.ErrProductNotFound:
+		p.l.Println("[ERROR] fetching product", err)
+
+		rw.WriteHeader(http.StatusNotFound)
+		data.ToJSON(&GenericError{Message: err.Error()}, rw)
+		return
+	default:
+		p.l.Println("[ERROR] fetching product", err)
+
+		rw.WriteHeader(http.StatusInternalServerError)
+		data.ToJSON(&GenericError{Message: err.Error()}, rw)
+		return
+	}
+
+	err = data.ToJSON(prod, rw)
+	if err != nil {
+		// we should never be here but log the error just incase
+		p.l.Println("[ERROR] serializing product", err)
+	}
+}
+
+
+// swagger:route POST /products products createProduct
+// Create a new product
+//
+// responses:
+//	200: productsResponse
+//  422: errorValidation
+//  501: errorResponse
+
+// Create handles POST requests to add new products
 func (p *Products) AddProduct(w http.ResponseWriter, r *http.Request) {
 	p.l.Println("Handle POST Product")
 
@@ -81,6 +197,16 @@ func (p *Products) AddProduct(w http.ResponseWriter, r *http.Request) {
 
 }
 
+
+// swagger:route PUT /products products updateProduct
+// Update a products details
+//
+// responses:
+//	201: noContentResponse
+//  404: errorResponse
+//  422: errorValidation
+
+// Update handles PUT requests to update products
 func (p Products) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
@@ -107,10 +233,12 @@ func (p Products) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// swagger:route POST /products/{id} products deleteProduct
+// swagger:route DELETE /products/{id} products deleteProduct
 // Returns a deleted product
 // responses:
 // 	200: noContent
+// 	404: errorResponse
+// 	501: errorResponse
 
 // DeleteProduct deletes a product from the data store
 func (p *Products) DeleteProduct(w http.ResponseWriter, r *http.Request) {
