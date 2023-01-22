@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"go-microservices/product-images/files"
 	"go-microservices/product-images/handlers"
+	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -60,4 +63,26 @@ func main() {
 	}
 
 	// start the server
+
+	go func ()  {
+		l.Info("Starting server", "bind_address", *bindAddress)
+		err := s.ListenAndServe()
+		if err != nil {
+			l.Error("Unable to start server", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// trap sigterm or interupt and gracefully shutdown the server
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Kill)
+
+	// Block until a signal is received.
+	sig := <-c
+	l.Info("Shutting down server with", "signal", sig)
+
+	// gracefully shutdown the server, waiting max 30 seconds for current operations to complete
+	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	s.Shutdown(ctx)
 }

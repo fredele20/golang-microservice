@@ -54,3 +54,8 @@ func (f *Files) saveFile(id, path string, rw http.ResponseWriter, r *http.Reques
 		http.Error(rw, "Unable to save file", http.StatusInternalServerError)
 	}
 }
+
+
+func (f *Files) getFile(id, path string, rw http.ResponseWriter, r *http.Request) {
+	f.log.Info("Get file for product", "id", id, "path", path)
+}
