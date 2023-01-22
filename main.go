@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/gorilla/mux"
+	muxHandlers "github.com/gorilla/handlers"
 )
 
 func main() {
@@ -27,27 +28,31 @@ func main() {
 
 	getRouter := sm.Methods(http.MethodGet).Subrouter()
 	getRouter.HandleFunc("/products", productHandler.GetProducts)
+	getRouter.HandleFunc("/products/{id:[0-9]+}", productHandler.ListSingle)
 
 	putRouter := sm.Methods(http.MethodPut).Subrouter()
-	putRouter.HandleFunc("/{id:[0-9]+}", productHandler.UpdateProduct)
+	putRouter.HandleFunc("/products/{id:[0-9]+}", productHandler.UpdateProduct)
 	putRouter.Use(productHandler.MiddlewareProductValidation)
 
 	postRouter := sm.Methods(http.MethodPost).Subrouter()
-	postRouter.HandleFunc("/", productHandler.AddProduct)
+	postRouter.HandleFunc("/products", productHandler.AddProduct)
 	postRouter.Use(productHandler.MiddlewareProductValidation)
 
 	deleteRouter := sm.Methods(http.MethodDelete).Subrouter()
-	deleteRouter.HandleFunc("/{id:[0-9]+}", productHandler.DeleteProduct)
+	deleteRouter.HandleFunc("/products/{id:[0-9]+}", productHandler.DeleteProduct)
 
 	opts := middleware.RedocOpts{SpecURL: "/swagger.yaml"}
 	sh := middleware.Redoc(opts, nil)
 
 	getRouter.Handle("/docs", sh)
 	getRouter.Handle("/swagger.yaml", http.FileServer(http.Dir("./")))
+
+	// CORS
+	ch := muxHandlers.CORS(muxHandlers.AllowedOrigins([]string{"*"})) // for react client
 	
 	s := &http.Server{
 		Addr:         ":9090",
-		Handler:      sm,
+		Handler:      ch(sm),
 		IdleTimeout:  120 * time.Second,
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 1 * time.Second,
