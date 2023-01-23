@@ -4,7 +4,6 @@ import (
 	"context"
 	"go-microservices/product-images/files"
 	"go-microservices/product-images/handlers"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -64,7 +63,7 @@ func main() {
 
 	// start the server
 
-	go func ()  {
+	go func() {
 		l.Info("Starting server", "bind_address", *bindAddress)
 		err := s.ListenAndServe()
 		if err != nil {
