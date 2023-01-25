@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"go-microservices/product-images/files"
+	"io"
 	"net/http"
 	"path/filepath"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/go-hclog"
@@ -35,7 +37,7 @@ func (f *Files) UploadREST(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f.saveFile(id, fn, rw, r)
+	f.saveFile(id, fn, rw, r.Body)
 }
 
 // UploadMultipart something
@@ -47,15 +49,23 @@ func (f *Files) UploadMultipart(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.FormValue("id")
+	id, idErr := strconv.Atoi(r.FormValue("id"))
 	f.log.Info("Process form for id", "id", id)
 
-	f, mh, err := r.FormFile("file")
-	if err != nil {
+	if idErr != nil {
 		f.log.Error("Bad request", "error", err)
-		http.Error(rw, "Expected multipart from data", http.StatusBadRequest)
+		http.Error(rw, "Expected integer id", http.StatusBadRequest)
 		return
 	}
+
+	ff, mh, err := r.FormFile("file")
+	if err != nil {
+		f.log.Error("Bad request", "error", err)
+		http.Error(rw, "Expected file", http.StatusBadRequest)
+		return
+	}
+
+	f.saveFile(r.FormValue("id"), mh.Filename, rw, ff)
 }
 
 func (f *Files) invalidURI(uri string, rw http.ResponseWriter) {
@@ -64,11 +74,11 @@ func (f *Files) invalidURI(uri string, rw http.ResponseWriter) {
 }
 
 // saveFile saves the contents of the request to a file
-func (f *Files) saveFile(id, path string, rw http.ResponseWriter, r *http.Request) {
+func (f *Files) saveFile(id, path string, rw http.ResponseWriter, r io.ReadCloser) {
 	f.log.Info("Save file for product", "id", id, "path", path)
 
 	fp := filepath.Join(id, path)
-	err := f.store.Save(fp, r.Body)
+	err := f.store.Save(fp, r)
 	if err != nil {
 		f.log.Error("Unable to save file", "error", err)
 		http.Error(rw, "Unable to save file", http.StatusInternalServerError)
